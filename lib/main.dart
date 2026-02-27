@@ -531,6 +531,7 @@ class TableDetailsScreen extends StatelessWidget {
 
   void _showNewOrderDialog(BuildContext context, int table, RestaurantProvider provider) {
     String waiterName = "";
+    bool showWaiterError = false;
     Map<Product, int> selectedItems = {};
 
     showDialog(
@@ -543,8 +544,17 @@ class TableDetailsScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  decoration: const InputDecoration(labelText: 'Nombre del Mesero', prefixIcon: Icon(Icons.person)),
-                  onChanged: (val) => waiterName = val,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Mesero', 
+                    prefixIcon: const Icon(Icons.person),
+                    errorText: showWaiterError ? 'Debe ingresar el nombre del mesero' : null,
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      waiterName = val;
+                      if (val.trim().isNotEmpty) showWaiterError = false;
+                    });
+                  },
                 ),
                 const SizedBox(height: 15),
                 const Text('Menú', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -571,10 +581,13 @@ class TableDetailsScreen extends StatelessWidget {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: appOrange),
               onPressed: () {
-                if (waiterName.isEmpty) return;
+                if (waiterName.trim().isEmpty) {
+                  setState(() => showWaiterError = true);
+                  return;
+                }
                 List<OrderItem> items = selectedItems.entries.where((e) => e.value > 0).map((e) => OrderItem(product: e.key, quantity: e.value)).toList();
                 if (items.isEmpty) return;
-                provider.addOrder(table, waiterName, items);
+                provider.addOrder(table, waiterName.trim(), items);
                 Navigator.pop(context);
               },
               child: const Text('Crear Pedido', style: TextStyle(color: Colors.white)),
