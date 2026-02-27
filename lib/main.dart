@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,11 +29,11 @@ class RestauranteApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF9F9FB),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFFB7317),
-          primary: const Color(0xFFFB7317),
+          seedColor: const Color(0xFFF47B25),
+          primary: const Color(0xFFF47B25),
           surface: Colors.white,
         ),
-        fontFamily: 'Roboto',
+        textTheme: GoogleFonts.plusJakartaSansTextTheme(),
       ),
       home: const MainScreen(),
     );
@@ -326,10 +327,11 @@ String formatShortDate(DateTime dt) {
   return '${dt.day}/${dt.month}/${dt.year}, ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
-final Color appOrange = const Color(0xFFFB7317);
-final Color appGreen = const Color(0xFF26C25B);
-final Color appRed = const Color(0xFFE54A4A);
-final Color appYellow = const Color(0xFFF5B01B);
+final Color appOrange = const Color(0xFFF47B25); // Primary #f47b25
+final Color appGreen =
+    const Color(0xFF10B981); // Modern emerald for success/in-stock
+final Color appRed = const Color(0xFFEF4444); // Modern red
+final Color appYellow = const Color(0xFFF5A623); // Secondary amber
 
 // ================= NAVEGADOR PRINCIPAL ================= //
 
@@ -354,67 +356,32 @@ class MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: Container(
-          color: Colors.white,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.restaurant, color: appOrange, size: 28),
-                    const SizedBox(width: 8),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Kitchen',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                height: 1)),
-                        Text('Commander',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                height: 1)),
-                      ],
-                    ),
-                    const Spacer(),
-                    _buildNavItem(0, Icons.home_outlined),
-                    _buildNavItem(1, Icons.assignment_outlined),
-                    _buildNavItem(2, Icons.check_circle_outline),
-                    _buildNavItem(3, Icons.bar_chart),
-                    _buildNavItem(4, Icons.restaurant_menu),
-                  ],
-                ),
-              ),
-              Container(height: 2, color: appOrange),
-            ],
-          ),
-        ),
+      appBar: AppBar(
+        title: const Text('Kitchen Commander',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        foregroundColor: appOrange,
+        elevation: 1,
+        centerTitle: true,
       ),
       body: _pages[_currentIndex],
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon) {
-    final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(left: 8),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: isSelected ? appOrange : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: isSelected ? Colors.white : Colors.black87),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: appOrange,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined), label: 'Mesas'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_outlined), label: 'Pendientes'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.check_circle_outline), label: 'Completados'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Ventas'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant_menu), label: 'Menú'),
+        ],
       ),
     );
   }
@@ -463,22 +430,47 @@ class ActionButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
   final IconData? icon;
+  final bool isSecondary;
+  final bool isOutline;
 
-  const ActionButton(
-      {super.key, required this.text, required this.onPressed, this.icon});
+  const ActionButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+    this.icon,
+    this.isSecondary = false,
+    this.isOutline = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (isOutline) {
+      return OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: appOrange,
+          side: BorderSide(color: appOrange, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        icon: icon != null ? Icon(icon, size: 18) : const SizedBox.shrink(),
+        label: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: onPressed,
+      );
+    }
+
+    final bgColor = isSecondary ? appYellow : appOrange;
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
-        backgroundColor: appOrange,
+        backgroundColor: bgColor,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 2,
+        elevation: 0, // Flat look is more modern
       ),
-      icon: Icon(icon ?? Icons.add, size: 18),
-      label: Text(text, style: const TextStyle(fontWeight: FontWeight.bold)),
+      icon: icon != null ? Icon(icon, size: 18) : const SizedBox.shrink(),
+      label: Text(text,
+          style:
+              const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.3)),
       onPressed: onPressed,
     );
   }
@@ -635,14 +627,15 @@ class TablesScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: BorderRadius.circular(6)),
+                              color: color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20)),
                           child: Text(
                             isOccupied ? 'OCUPADA' : 'LIBRE',
-                            style: const TextStyle(
-                                color: Colors.white,
+                            style: TextStyle(
+                                color: color,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12),
+                                fontSize: 12,
+                                letterSpacing: 0.5),
                           ),
                         ),
                       ],
@@ -1026,14 +1019,15 @@ class _OrderCard extends StatelessWidget {
                   ] else
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                          color: appGreen,
-                          borderRadius: BorderRadius.circular(4)),
-                      child: const Text('COMPLETADO',
+                          color: appGreen.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text('COMPLETADO',
                           style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                              color: appGreen,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5)),
                     )
                 ],
               ),
@@ -1231,6 +1225,7 @@ class CompletedOrdersScreen extends StatelessWidget {
               ? ActionButton(
                   text: 'COMPARTIR',
                   icon: Icons.share,
+                  isOutline: true,
                   onPressed: () => provider.shareDailySummary())
               : null,
         ),
@@ -1297,7 +1292,7 @@ class MenuManagerScreen extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(product == null ? 'Nuevo Producto' : 'Editar Producto'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1315,7 +1310,7 @@ class MenuManagerScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child:
                   const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -1324,7 +1319,13 @@ class MenuManagerScreen extends StatelessWidget {
               final name = nameCtrl.text.trim();
               final price =
                   double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0.0;
-              if (name.isEmpty || price <= 0) return;
+              if (name.isEmpty || price <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content:
+                        Text('Ingrese un nombre de producto y precio válido'),
+                    backgroundColor: Colors.red));
+                return;
+              }
 
               if (product == null) {
                 context.read<RestaurantProvider>().addProduct(Product(
@@ -1336,7 +1337,7 @@ class MenuManagerScreen extends StatelessWidget {
                     .read<RestaurantProvider>()
                     .editProduct(product.id, name, price);
               }
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
             },
             child: const Text('Guardar', style: TextStyle(color: Colors.white)),
           ),
