@@ -796,7 +796,7 @@ class MenuManagerScreen extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => {}),
+                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showProductDialog(context, prod)),
                       IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => context.read<RestaurantProvider>().deleteProduct(prod.id)),
                     ],
                   ),
@@ -804,7 +804,46 @@ class MenuManagerScreen extends StatelessWidget {
               )),
         ],
       ),
-      floatingActionButton: FloatingActionButton(backgroundColor: appOrange, child: const Icon(Icons.add, color: Colors.white), onPressed: () => {}),
+      floatingActionButton: FloatingActionButton(backgroundColor: appOrange, child: const Icon(Icons.add, color: Colors.white), onPressed: () => _showProductDialog(context, null)),
+    );
+  }
+
+  void _showProductDialog(BuildContext context, Product? product) {
+    final nameCtrl = TextEditingController(text: product?.name ?? '');
+    final priceCtrl = TextEditingController(text: product?.price.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(product == null ? 'Nuevo Producto' : 'Editar Producto'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Nombre del producto')),
+            TextField(controller: priceCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Precio')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: appOrange),
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              final price = double.tryParse(priceCtrl.text.replaceAll(',', '.')) ?? 0.0;
+              if (name.isEmpty || price <= 0) return;
+
+              if (product == null) {
+                context.read<RestaurantProvider>().addProduct(
+                    Product(id: DateTime.now().millisecondsSinceEpoch.toString(), name: name, price: price));
+              } else {
+                context.read<RestaurantProvider>().editProduct(product.id, name, price);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 }
