@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +17,7 @@ void main() async {
 }
 
 class RestauranteApp extends StatelessWidget {
-  const RestauranteApp({Key? key}) : super(key: key);
+  const RestauranteApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -67,8 +68,20 @@ class OrderItem {
       );
 }
 
+class RestaurantTable {
+  int id;
+  String name;
+  RestaurantTable({required this.id, required this.name});
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+  factory RestaurantTable.fromJson(Map<String, dynamic> json) => RestaurantTable(
+        id: json['id'] as int,
+        name: json['name'] as String,
+      );
+}
+
 class Order {
   String id;
+  int orderNumber;
   int tableNumber;
   String waiterName;
   String? clientName;
@@ -78,6 +91,7 @@ class Order {
   DateTime timestamp;
   Order({
     required this.id,
+    required this.orderNumber,
     required this.tableNumber,
     required this.waiterName,
     this.clientName,
@@ -89,6 +103,7 @@ class Order {
   double get total => items.fold(0, (sum, item) => sum + item.total);
   Map<String, dynamic> toJson() => {
         'id': id,
+        'orderNumber': orderNumber,
         'tableNumber': tableNumber,
         'waiterName': waiterName,
         'clientName': clientName,
@@ -100,6 +115,7 @@ class Order {
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
         id: json['id'] as String,
+        orderNumber: json['orderNumber'] as int? ?? 0,
         tableNumber: json['tableNumber'] as int,
         waiterName: json['waiterName'] as String,
         clientName: json['clientName'] as String?,
@@ -115,7 +131,8 @@ class Order {
 class RestaurantProvider extends ChangeNotifier {
   final SharedPreferences prefs;
 
-  List<int> tables = [1, 2];
+  List<RestaurantTable> tables = [];
+  int orderCounter = 1;
 
   List<Product> menu = [
     Product(id: '1', name: 'Hamburguesa Clásica', price: 12.99),
@@ -133,8 +150,17 @@ class RestaurantProvider extends ChangeNotifier {
     try {
       final tablesJson = prefs.getString('tables');
       if (tablesJson != null) {
-        tables = List<int>.from(jsonDecode(tablesJson));
+        Iterable l = jsonDecode(tablesJson);
+        if (l.isNotEmpty && l.first is int) {
+           tables = l.map((numValue) => RestaurantTable(id: numValue, name: 'Mesa $numValue')).toList();
+        } else {
+           tables = List<RestaurantTable>.from(l.map((model) => RestaurantTable.fromJson(model)));
+        }
+      } else {
+        tables = [RestaurantTable(id: 1, name: 'Mesa 1'), RestaurantTable(id: 2, name: 'Mesa 2')];
       }
+      
+      orderCounter = prefs.getInt('orderCounter') ?? 1;
 
       final menuJson = prefs.getString('menu');
       if (menuJson != null) {
@@ -148,34 +174,45 @@ class RestaurantProvider extends ChangeNotifier {
         orders = List<Order>.from(l.map((model) => Order.fromJson(model)));
       }
     } catch (e) {
-      print("Error loading data from SharedPreferences: $e");
+      debugPrint("Error loading data from SharedPreferences: $e");
     }
   }
 
   List<Order> get pendingOrders => orders.where((o) => !o.isCompleted).toList();
   List<Order> get completedOrders => orders.where((o) => o.isCompleted).toList();
+  List<String> get knownWaiters => orders.map((o) => o.waiterName).toSet().toList();
 
   void _saveDataLocally() {
-    prefs.setString('tables', jsonEncode(tables));
+    prefs.setString('tables', jsonEncode(tables.map((e) => e.toJson()).toList()));
+    prefs.setInt('orderCounter', orderCounter);
     prefs.setString('menu', jsonEncode(menu.map((e) => e.toJson()).toList()));
     prefs.setString('orders', jsonEncode(orders.map((e) => e.toJson()).toList()));
     notifyListeners();
   }
 
-  void addTable() {
-    int next = tables.isEmpty ? 1 : tables.reduce((a, b) => a > b ? a : b) + 1;
-    tables.add(next);
+  void addTable(String name) {
+    int nextId = tables.isEmpty ? 1 : tables.map((e) => e.id).reduce((a, b) => a > b ? a : b) + 1;
+    tables.add(RestaurantTable(id: nextId, name: name));
     _saveDataLocally();
   }
 
-  void removeTable(int tableNum) {
-    tables.remove(tableNum);
+  void removeTable(int tableId) {
+    tables.removeWhere((t) => t.id == tableId);
     _saveDataLocally();
+  }
+
+  void editTableName(int tableId, String newName) {
+    var index = tables.indexWhere((t) => t.id == tableId);
+    if (index != -1) {
+      tables[index].name = newName;
+      _saveDataLocally();
+    }
   }
 
   void addOrder(int table, String waiter, String? clientName, String? clientDoc, List<OrderItem> items) {
     orders.add(Order(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
+      orderNumber: orderCounter++,
       tableNumber: table,
       waiterName: waiter,
       clientName: clientName,
@@ -185,11 +222,24 @@ class RestaurantProvider extends ChangeNotifier {
     ));
     _saveDataLocally();
   }
+  
+  void updateOrder(String orderId, String waiter, String? clientName, String? clientDoc, List<OrderItem> items) {
+    var index = orders.indexWhere((o) => o.id == orderId);
+    if (index != -1) {
+      orders[index].waiterName = waiter;
+      orders[index].clientName = clientName;
+      orders[index].clientDocument = clientDoc;
+      orders[index].items = items;
+      _saveDataLocally();
+    }
+  }
 
   void completeOrder(String orderId) {
-    final order = orders.firstWhere((o) => o.id == orderId);
-    order.isCompleted = true;
-    _saveDataLocally();
+    final index = orders.indexWhere((o) => o.id == orderId);
+    if (index != -1) {
+      orders[index].isCompleted = true;
+      _saveDataLocally();
+    }
   }
 
   void addProduct(Product product) {
@@ -214,6 +264,37 @@ class RestaurantProvider extends ChangeNotifier {
   List<Order> getPendingOrdersForTable(int table) {
     return pendingOrders.where((o) => o.tableNumber == table).toList();
   }
+
+  Future<void> shareDailySummary() async {
+    final list = completedOrders;
+    if (list.isEmpty) return;
+    final total = list.fold(0.0, (sum, o) => sum + o.total);
+    final now = DateTime.now();
+    final String dateString = '${now.day}/${now.month}/${now.year}';
+    
+    StringBuffer sb = StringBuffer();
+    sb.writeln('*Reporte de Ventas Diarias*');
+    sb.writeln('Fecha: $dateString');
+    sb.writeln('Total Vendido: \$${total.toStringAsFixed(2)}');
+    sb.writeln('Total Pedidos: ${list.length}');
+    sb.writeln('--------------------');
+    for (var o in list) {
+       final tableName = tables.firstWhere((t) => t.id == o.tableNumber, orElse: () => RestaurantTable(id: o.tableNumber, name: 'Mesa ${o.tableNumber}')).name;
+       sb.writeln('Pedido #${o.orderNumber} - $tableName');
+       sb.writeln('Hora: ${o.timestamp.hour.toString().padLeft(2, '0')}:${o.timestamp.minute.toString().padLeft(2, '0')}');
+       sb.writeln('Mesero: ${o.waiterName}');
+       if(o.clientName != null && o.clientName!.isNotEmpty) {
+           sb.writeln('Cliente: ${o.clientName}');
+       }
+       sb.writeln('Total Pedido: \$${o.total.toStringAsFixed(2)}');
+       for (var item in o.items) {
+           sb.writeln('  - ${item.quantity}x ${item.product.name}');
+       }
+       sb.writeln('--------------------');
+    }
+    
+    await Share.share(sb.toString(), subject: 'Reporte de Ventas $dateString');
+  }
 }
 
 // ================= UTILS ================= //
@@ -230,7 +311,7 @@ final Color appYellow = const Color(0xFFF5B01B);
 // ================= NAVEGADOR PRINCIPAL ================= //
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  const MainScreen({super.key});
 
   @override
   State<MainScreen> createState() => MainScreenState();
@@ -314,7 +395,7 @@ class PageHeader extends StatelessWidget {
   final String subtitle;
   final Widget? trailing;
 
-  const PageHeader({Key? key, required this.title, required this.subtitle, this.trailing}) : super(key: key);
+  const PageHeader({super.key, required this.title, required this.subtitle, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +426,7 @@ class ActionButton extends StatelessWidget {
   final VoidCallback onPressed;
   final IconData? icon;
 
-  const ActionButton({Key? key, required this.text, required this.onPressed, this.icon}) : super(key: key);
+  const ActionButton({super.key, required this.text, required this.onPressed, this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +448,7 @@ class ActionButton extends StatelessWidget {
 // ================= PANTALLA 1: MESAS ================= //
 
 class TablesScreen extends StatelessWidget {
-  const TablesScreen({Key? key}) : super(key: key);
+  const TablesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -384,7 +465,35 @@ class TablesScreen extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: ActionButton(
             text: 'CREAR NUEVA MESA',
-            onPressed: () => provider.addTable(),
+            onPressed: () {
+              final nameCtrl = TextEditingController();
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Nueva Mesa'),
+                  content: TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Nombre de la mesa (Ej: Balcón, Reserva...)'),
+                    autofocus: true,
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: appOrange),
+                      onPressed: () {
+                        if (nameCtrl.text.trim().isNotEmpty) {
+                          provider.addTable(nameCtrl.text.trim());
+                        } else {
+                          provider.addTable("Mesa ${provider.tables.length + 1}");
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Crear', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 20),
@@ -399,7 +508,8 @@ class TablesScreen extends StatelessWidget {
           ),
           itemCount: provider.tables.length,
           itemBuilder: (context, index) {
-            final tableNum = provider.tables[index];
+            final table = provider.tables[index];
+            final tableNum = table.id;
             final orders = provider.getPendingOrdersForTable(tableNum);
             final isOccupied = orders.isNotEmpty;
             final color = isOccupied ? appRed : appGreen;
@@ -422,14 +532,14 @@ class TablesScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.05),
+                      color: color.withValues(alpha: 0.05),
                       border: Border(left: BorderSide(color: color, width: 4)),
                     ),
                     child: Column(
@@ -438,9 +548,12 @@ class TablesScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Mesa $tableNum',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                            Expanded(
+                              child: Text(
+                                table.name,
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             if (!isOccupied)
                               GestureDetector(
@@ -480,13 +593,14 @@ class TablesScreen extends StatelessWidget {
 
 class TableDetailsScreen extends StatelessWidget {
   final int tableId;
-  const TableDetailsScreen({Key? key, required this.tableId}) : super(key: key);
+  const TableDetailsScreen({super.key, required this.tableId});
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RestaurantProvider>();
     final orders = provider.getPendingOrdersForTable(tableId);
     final isOccupied = orders.isNotEmpty;
+    final tableName = provider.tables.firstWhere((t) => t.id == tableId, orElse: () => RestaurantTable(id: tableId, name: 'Mesa $tableId')).name;
 
     return Scaffold(
       appBar: AppBar(
@@ -513,7 +627,7 @@ class TableDetailsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Mesa $tableId', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(tableName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -551,57 +665,108 @@ class TableDetailsScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _showNewOrderDialog(BuildContext context, int table, RestaurantProvider provider) {
-    String waiterName = "";
+void _showNewOrderDialog(BuildContext context, int tableId, RestaurantProvider provider, {Order? existingOrder}) {
+    final tableName = provider.tables.firstWhere((t) => t.id == tableId, orElse: () => RestaurantTable(id: tableId, name: 'Mesa $tableId')).name;
+    String waiterName = existingOrder?.waiterName ?? "";
     bool showWaiterError = false;
-    String clientName = "";
-    String clientDocument = "";
+    String clientName = existingOrder?.clientName ?? "";
+    String clientDocument = existingOrder?.clientDocument ?? "";
     Map<Product, int> selectedItems = {};
+
+    if (existingOrder != null) {
+      for (var item in existingOrder.items) {
+        selectedItems[item.product] = item.quantity;
+      }
+    }
+
+    final TextEditingController waiterCtrl = TextEditingController(text: waiterName);
+    final TextEditingController clientCtrl = TextEditingController(text: clientName);
+    final TextEditingController docCtrl = TextEditingController(text: clientDocument);
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('Nueva Orden - Mesa $table'),
+          title: Text(existingOrder == null ? 'Nueva Orden - $tableName' : 'Modificar Orden #${existingOrder.orderNumber}'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Nombre del Mesero', 
-                    prefixIcon: const Icon(Icons.person),
-                    errorText: showWaiterError ? 'Debe ingresar el nombre del mesero' : null,
-                  ),
-                  onChanged: (val) {
-                    setState(() {
-                      waiterName = val;
-                      if (val.trim().isNotEmpty) showWaiterError = false;
+                Autocomplete<String>(
+                  initialValue: TextEditingValue(text: waiterName),
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    return provider.knownWaiters.where((String option) {
+                      return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
                     });
+                  },
+                  onSelected: (String selection) {
+                    setState(() {
+                      waiterName = selection;
+                      waiterCtrl.text = selection;
+                      showWaiterError = false;
+                    });
+                  },
+                  fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                    // Sincronizar controladores si se inicializó con un valor existente
+                    if (waiterCtrl.text.isNotEmpty && textEditingController.text.isEmpty) {
+                      textEditingController.text = waiterCtrl.text;
+                    }
+                    return TextField(
+                      controller: textEditingController,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        labelText: 'Nombre del Mesero', 
+                        prefixIcon: const Icon(Icons.person),
+                        errorText: showWaiterError ? 'Debe ingresar el nombre del mesero' : null,
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          waiterName = val;
+                          waiterCtrl.text = val;
+                          if (val.trim().isNotEmpty) showWaiterError = false;
+                        });
+                      },
+                    );
                   },
                 ),
                 TextField(
+                  controller: clientCtrl,
                   decoration: const InputDecoration(labelText: 'Cliente (Nombre/Alias opcional)', prefixIcon: Icon(Icons.person_outline)),
                   onChanged: (val) => clientName = val,
                 ),
                 TextField(
+                  controller: docCtrl,
                   decoration: const InputDecoration(labelText: 'Cédula / RUC (Opcional)', prefixIcon: Icon(Icons.badge)),
                   onChanged: (val) => clientDocument = val,
                 ),
                 const SizedBox(height: 15),
                 const Text('Menú', style: TextStyle(fontWeight: FontWeight.bold)),
                 ...provider.menu.map((product) {
-                  int qty = selectedItems[product] ?? 0;
+                  int qty = selectedItems.entries.firstWhere((e) => e.key.id == product.id, orElse: () => MapEntry(product, 0)).value;
                   return ListTile(
                     title: Text(product.name),
                     subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(icon: const Icon(Icons.remove_circle, color: Colors.red), onPressed: qty > 0 ? () => setState(() => selectedItems[product] = qty - 1) : null),
+                        IconButton(icon: const Icon(Icons.remove_circle, color: Colors.red), onPressed: qty > 0 ? () {
+                          setState(() {
+                            var actualProductKey = selectedItems.keys.firstWhere((k) => k.id == product.id, orElse: () => product);
+                            selectedItems[actualProductKey] = qty - 1;
+                          });
+                        } : null),
                         Text('$qty', style: const TextStyle(fontSize: 16)),
-                        IconButton(icon: Icon(Icons.add_circle, color: appGreen), onPressed: () => setState(() => selectedItems[product] = qty + 1)),
+                        IconButton(icon: Icon(Icons.add_circle, color: appGreen), onPressed: () {
+                           setState(() {
+                            var actualProductKey = selectedItems.keys.firstWhere((k) => k.id == product.id, orElse: () => product);
+                            selectedItems[actualProductKey] = qty + 1;
+                          });
+                        }),
                       ],
                     ),
                   );
@@ -620,16 +785,20 @@ class TableDetailsScreen extends StatelessWidget {
                 }
                 List<OrderItem> items = selectedItems.entries.where((e) => e.value > 0).map((e) => OrderItem(product: e.key, quantity: e.value)).toList();
                 if (items.isEmpty) return;
-                provider.addOrder(table, waiterName.trim(), clientName.trim(), clientDocument.trim(), items);
+                
+                if (existingOrder == null) {
+                  provider.addOrder(tableId, waiterName.trim(), clientName.trim(), clientDocument.trim(), items);
+                } else {
+                  provider.updateOrder(existingOrder.id, waiterName.trim(), clientName.trim(), clientDocument.trim(), items);
+                }
                 Navigator.pop(context);
               },
-              child: const Text('Crear Pedido', style: TextStyle(color: Colors.white)),
+              child: Text(existingOrder == null ? 'Crear Pedido' : 'Guardar Cambios', style: const TextStyle(color: Colors.white)),
             ),
           ],
         ),
       ),
     );
-  }
 }
 
 // ================= TARJETA DE ORDEN ================= //
@@ -642,12 +811,14 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.read<RestaurantProvider>();
+    final tableName = provider.tables.firstWhere((t) => t.id == order.tableNumber, orElse: () => RestaurantTable(id: order.tableNumber, name: 'Mesa ${order.tableNumber}')).name;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -665,18 +836,22 @@ class _OrderCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Mesa ${order.tableNumber}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                        Text('Pedido #${order.orderNumber} - $tableName', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text('Mesero: ${order.waiterName} • ${formatShortDate(order.timestamp)}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                         if (order.clientName != null && order.clientName!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text('Cliente: ${order.clientName}' + (order.clientDocument != null && order.clientDocument!.isNotEmpty ? ' (${order.clientDocument})' : ''), style: const TextStyle(color: Colors.black87, fontSize: 14)),
+                            child: Text('Cliente: ${order.clientName}${order.clientDocument != null && order.clientDocument!.isNotEmpty ? ' (${order.clientDocument})' : ''}', style: const TextStyle(color: Colors.black87, fontSize: 14)),
                           ),
                       ],
                     ),
                   ),
-                  if (!order.isCompleted)
+                  if (!order.isCompleted) ...[
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blueAccent),
+                      onPressed: () => _showNewOrderDialog(context, order.tableNumber, provider, existingOrder: order),
+                    ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: appGreen, foregroundColor: Colors.white,
@@ -686,7 +861,7 @@ class _OrderCard extends StatelessWidget {
                       label: const Text('COMPLETAR', style: TextStyle(fontWeight: FontWeight.bold)),
                       onPressed: () => provider.completeOrder(order.id),
                     )
-                  else
+                  ] else
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(color: appGreen, borderRadius: BorderRadius.circular(4)),
@@ -730,7 +905,7 @@ class _OrderCard extends StatelessWidget {
 // ================= ESTADÍSTICAS Y OTRAS PANTALLAS ================= //
 
 class StatsScreen extends StatelessWidget {
-  const StatsScreen({Key? key}) : super(key: key);
+  const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -764,7 +939,7 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -778,7 +953,7 @@ class _MetricCard extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                     child: Icon(icon, color: color),
                   ),
                   const SizedBox(width: 12),
@@ -796,7 +971,7 @@ class _MetricCard extends StatelessWidget {
 }
 
 class PendingOrdersScreen extends StatelessWidget {
-  const PendingOrdersScreen({Key? key}) : super(key: key);
+  const PendingOrdersScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final pending = context.watch<RestaurantProvider>().pendingOrders;
@@ -812,23 +987,31 @@ class PendingOrdersScreen extends StatelessWidget {
 }
 
 class CompletedOrdersScreen extends StatelessWidget {
-  const CompletedOrdersScreen({Key? key}) : super(key: key);
+  const CompletedOrdersScreen({super.key});
   @override
   Widget build(BuildContext context) {
-    final completed = context.watch<RestaurantProvider>().completedOrders;
+    final provider = context.watch<RestaurantProvider>();
+    final completed = provider.completedOrders;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const PageHeader(title: 'Historial de Pedidos', subtitle: 'Pedidos completados del día'),
+        PageHeader(
+          title: 'Historial de Pedidos', 
+          subtitle: 'Pedidos completados del día',
+          trailing: completed.isNotEmpty ? ActionButton(
+            text: 'COMPARTIR', 
+            icon: Icons.share, 
+            onPressed: () => provider.shareDailySummary()
+          ) : null,
+        ),
         if (completed.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No hay pedidos completados.', style: TextStyle(color: Colors.grey)))),
         ...completed.map((o) => _OrderCard(order: o, color: appGreen)),
       ],
     );
   }
 }
-
 class MenuManagerScreen extends StatelessWidget {
-  const MenuManagerScreen({Key? key}) : super(key: key);
+  const MenuManagerScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final menu = context.watch<RestaurantProvider>().menu;
