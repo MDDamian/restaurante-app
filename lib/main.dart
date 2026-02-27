@@ -71,6 +71,8 @@ class Order {
   String id;
   int tableNumber;
   String waiterName;
+  String? clientName;
+  String? clientDocument;
   List<OrderItem> items;
   bool isCompleted;
   DateTime timestamp;
@@ -78,6 +80,8 @@ class Order {
     required this.id,
     required this.tableNumber,
     required this.waiterName,
+    this.clientName,
+    this.clientDocument,
     required this.items,
     this.isCompleted = false,
     required this.timestamp,
@@ -87,6 +91,8 @@ class Order {
         'id': id,
         'tableNumber': tableNumber,
         'waiterName': waiterName,
+        'clientName': clientName,
+        'clientDocument': clientDocument,
         'items': items.map((i) => i.toJson()).toList(),
         'isCompleted': isCompleted,
         'timestamp': timestamp.toIso8601String(),
@@ -96,6 +102,8 @@ class Order {
         id: json['id'] as String,
         tableNumber: json['tableNumber'] as int,
         waiterName: json['waiterName'] as String,
+        clientName: json['clientName'] as String?,
+        clientDocument: json['clientDocument'] as String?,
         items: List<OrderItem>.from(json['items'].map((x) => OrderItem.fromJson(x))),
         isCompleted: json['isCompleted'] as bool,
         timestamp: DateTime.parse(json['timestamp']),
@@ -165,11 +173,13 @@ class RestaurantProvider extends ChangeNotifier {
     _saveDataLocally();
   }
 
-  void addOrder(int table, String waiter, List<OrderItem> items) {
+  void addOrder(int table, String waiter, String? clientName, String? clientDoc, List<OrderItem> items) {
     orders.add(Order(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       tableNumber: table,
       waiterName: waiter,
+      clientName: clientName,
+      clientDocument: clientDoc,
       items: items,
       timestamp: DateTime.now(),
     ));
@@ -394,6 +404,14 @@ class TablesScreen extends StatelessWidget {
             final isOccupied = orders.isNotEmpty;
             final color = isOccupied ? appRed : appGreen;
 
+            String? clientStr;
+            if (isOccupied) {
+              final firstOrder = orders.first;
+              if (firstOrder.clientName != null && firstOrder.clientName!.isNotEmpty) {
+                 clientStr = firstOrder.clientName;
+              }
+            }
+
             return GestureDetector(
               onTap: () {
                 Navigator.push(context, MaterialPageRoute(
@@ -431,6 +449,11 @@ class TablesScreen extends StatelessWidget {
                               ),
                           ],
                         ),
+                        if (clientStr != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(clientStr, style: const TextStyle(fontSize: 14, color: Colors.black54), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -532,6 +555,8 @@ class TableDetailsScreen extends StatelessWidget {
   void _showNewOrderDialog(BuildContext context, int table, RestaurantProvider provider) {
     String waiterName = "";
     bool showWaiterError = false;
+    String clientName = "";
+    String clientDocument = "";
     Map<Product, int> selectedItems = {};
 
     showDialog(
@@ -555,6 +580,14 @@ class TableDetailsScreen extends StatelessWidget {
                       if (val.trim().isNotEmpty) showWaiterError = false;
                     });
                   },
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Cliente (Nombre/Alias opcional)', prefixIcon: Icon(Icons.person_outline)),
+                  onChanged: (val) => clientName = val,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: 'Cédula / RUC (Opcional)', prefixIcon: Icon(Icons.badge)),
+                  onChanged: (val) => clientDocument = val,
                 ),
                 const SizedBox(height: 15),
                 const Text('Menú', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -587,7 +620,7 @@ class TableDetailsScreen extends StatelessWidget {
                 }
                 List<OrderItem> items = selectedItems.entries.where((e) => e.value > 0).map((e) => OrderItem(product: e.key, quantity: e.value)).toList();
                 if (items.isEmpty) return;
-                provider.addOrder(table, waiterName.trim(), items);
+                provider.addOrder(table, waiterName.trim(), clientName.trim(), clientDocument.trim(), items);
                 Navigator.pop(context);
               },
               child: const Text('Crear Pedido', style: TextStyle(color: Colors.white)),
@@ -635,6 +668,11 @@ class _OrderCard extends StatelessWidget {
                         Text('Mesa ${order.tableNumber}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
                         Text('Mesero: ${order.waiterName} • ${formatShortDate(order.timestamp)}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                        if (order.clientName != null && order.clientName!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('Cliente: ${order.clientName}' + (order.clientDocument != null && order.clientDocument!.isNotEmpty ? ' (${order.clientDocument})' : ''), style: const TextStyle(color: Colors.black87, fontSize: 14)),
+                          ),
                       ],
                     ),
                   ),
