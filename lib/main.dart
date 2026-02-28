@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -317,7 +318,18 @@ class RestaurantProvider extends ChangeNotifier {
       sb.writeln('--------------------');
     }
 
-    await Share.share(sb.toString(), subject: 'Reporte de Ventas $dateString');
+    final message = sb.toString();
+    final whatsappUrl = Uri.parse("whatsapp://send?text=${Uri.encodeComponent(message)}");
+
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl);
+      } else {
+        await Share.share(message, subject: 'Reporte de Ventas $dateString');
+      }
+    } catch (_) {
+      await Share.share(message, subject: 'Reporte de Ventas $dateString');
+    }
   }
 }
 
