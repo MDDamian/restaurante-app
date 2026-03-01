@@ -15,8 +15,14 @@ import 'presentation/screens/menu_manager_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Update this to your local machine IP if testing on a real iPhone
-  const String baseUrl = 'http://localhost:5000';
+  // Update this to your local machine IP if testing on a real device
+  // 10.0.2.2 is the special alias to your host loopback interface in the Android emulator
+  final String baseUrl = identical(0, 0.0) // Web check
+      ? 'http://localhost:5000'
+      : (ThemeData().platform == TargetPlatform.android
+          ? 'http://10.0.2.2:5000'
+          : 'http://localhost:5000');
+
   
   // Infrastructure Layer
   final remoteDataSource = RemoteDataSource(baseUrl: baseUrl);
