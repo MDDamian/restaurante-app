@@ -14,15 +14,10 @@ import 'presentation/screens/menu_manager_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Update this to your local machine IP if testing on a real device
-  // 10.0.2.2 is the special alias to your host loopback interface in the Android emulator
-  final String baseUrl = identical(0, 0.0) // Web check
-      ? 'http://localhost:5000'
-      : (ThemeData().platform == TargetPlatform.android
-          ? 'http://10.0.2.2:5000'
-          : 'http://localhost:5000');
 
+  // Update this to your local machine IP if testing on a real device
+  // Using 192.168.1.24 so a physical Android phone on the same Wi-Fi can connect
+  final String baseUrl = 'http://192.168.1.24:5000';
   
   // Infrastructure Layer
   final remoteDataSource = RemoteDataSource(baseUrl: baseUrl);
