@@ -9,6 +9,7 @@ import '../domain/entities/product.dart';
 import '../domain/entities/table.dart';
 import '../domain/repositories/restaurant_repository.dart';
 import '../infrastructure/repositories/restaurant_repository_impl.dart';
+import '../core/utils/initial_data.dart';
 
 class RestaurantProvider with ChangeNotifier {
   final RestaurantRepository repository;
@@ -47,9 +48,9 @@ class RestaurantProvider with ChangeNotifier {
 
   void _initializeCategories() {
     _categories = [
-      Category(id: 'cat1', name: 'Platos Fuertes', sortOrder: 1, image: ''),
-      Category(id: 'cat2', name: 'Bebidas', sortOrder: 2, image: ''),
-      Category(id: 'cat3', name: 'Entradas', sortOrder: 0, image: ''),
+      Category(id: 'cat1', name: 'Platos Fuertes', sortOrder: 1, image: InitialData.imgPlatosFuertes),
+      Category(id: 'cat2', name: 'Bebidas', sortOrder: 2, image: InitialData.imgBebidas),
+      Category(id: 'cat3', name: 'Entradas', sortOrder: 0, image: InitialData.imgEntradas),
     ];
   }
 

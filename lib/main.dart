@@ -77,15 +77,18 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Image.asset(
-          'assets/images/logo.png',
-          height: 40,
-          fit: BoxFit.contain,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Image.asset(
+            'assets/images/logo.png',
+            height: 60,
+            fit: BoxFit.contain,
+          ),
         ),
         backgroundColor: Colors.white,
         foregroundColor: appOrange,
         elevation: 1,
-        centerTitle: true,
+        centerTitle: false,
         actions: [
           Consumer<RestaurantProvider>(
             builder: (context, provider, child) {
