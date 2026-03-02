@@ -164,18 +164,20 @@ class RestaurantProvider with ChangeNotifier {
   }
 
   void addTable(String name) async {
-    final currentTables = await repository.getTables();
-    currentTables.add(RestaurantTable(id: currentTables.length + 1, name: name));
-    await repository.saveTables(currentTables);
-    _tempTables = currentTables;
+    // We use the local cache instead of re-fetching to avoid state loss/race conditions
+    int nextId = 1;
+    if (_tempTables.isNotEmpty) {
+      nextId = _tempTables.map((t) => t.id).reduce((a, b) => a > b ? a : b) + 1;
+    }
+    
+    _tempTables.add(RestaurantTable(id: nextId, name: name));
+    await repository.saveTables(_tempTables);
     notifyListeners();
   }
 
   void removeTable(num tableNum) async {
-    final currentTables = await repository.getTables();
-    currentTables.removeWhere((t) => t.id == tableNum);
-    await repository.saveTables(currentTables);
-    _tempTables = currentTables;
+    _tempTables.removeWhere((t) => t.id == tableNum);
+    await repository.saveTables(_tempTables);
     notifyListeners();
   }
 
