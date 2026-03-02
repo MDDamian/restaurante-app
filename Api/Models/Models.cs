@@ -7,6 +7,15 @@ public class Product
     public decimal Price { get; set; }
     public string? Image { get; set; }
     public int SortOrder { get; set; }
+    public string Category { get; set; } = "General";
+}
+
+public class Category
+{
+    public string Id { get; set; } = null!;
+    public string Name { get; set; } = null!;
+    public string? Image { get; set; }
+    public int SortOrder { get; set; }
 }
 
 public class OrderTable

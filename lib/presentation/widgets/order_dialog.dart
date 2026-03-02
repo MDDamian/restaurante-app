@@ -33,13 +33,25 @@ void showNewOrderDialog(
   final TextEditingController docCtrl =
       TextEditingController(text: clientDocument);
 
+  String? selectedCategory;
   showDialog(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: Text(existingOrder == null
-            ? 'Nueva Orden - $tableName'
-            : 'Modificar Orden #${existingOrder.orderNumber}'),
+        title: Row(
+          children: [
+            Image.asset(appLogo, height: 30),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                existingOrder == null
+                    ? 'Nueva Orden - $tableName'
+                    : 'Modificar Orden #${existingOrder.orderNumber}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -104,61 +116,84 @@ void showNewOrderDialog(
                 onChanged: (val) => clientDocument = val,
               ),
               const SizedBox(height: 15),
-              const Text('Menú', style: TextStyle(fontWeight: FontWeight.bold)),
-              ...provider.menu.map((product) {
-                int qty = selectedItems.entries
-                    .firstWhere((e) => e.key.id == product.id,
-                        orElse: () => MapEntry(product, 0))
-                    .value;
-                return ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Menú', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  if (selectedCategory != null)
+                    TextButton.icon(
+                      onPressed: () => setState(() => selectedCategory = null),
+                      icon: const Icon(Icons.arrow_back, size: 16),
+                      label: const Text('Categorías'),
+                      style: TextButton.styleFrom(foregroundColor: appOrange),
                     ),
-                    child: product.image != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.memory(base64Decode(product.image!),
-                                fit: BoxFit.cover),
-                          )
-                        : const Icon(Icons.fastfood, size: 20, color: Colors.grey),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (selectedCategory == null)
+                // Categorías Grid
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
-                  title: Text(product.name),
-                  subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                          icon: const Icon(Icons.remove_circle,
-                              color: Colors.red),
-                          onPressed: qty > 0
-                              ? () {
-                                  setState(() {
-                                    var actualProductKey = selectedItems.keys
-                                        .firstWhere((k) => k.id == product.id,
-                                            orElse: () => product);
-                                    selectedItems[actualProductKey] = qty - 1;
-                                  });
-                                }
-                              : null),
-                      Text('$qty', style: const TextStyle(fontSize: 16)),
-                      IconButton(
-                          icon: const Icon(Icons.add_circle, color: appGreen),
-                          onPressed: () {
-                            setState(() {
-                              var actualProductKey = selectedItems.keys
-                                  .firstWhere((k) => k.id == product.id,
-                                      orElse: () => product);
-                              selectedItems[actualProductKey] = qty + 1;
-                            });
-                          }),
-                    ],
-                  ),
-                );
-              }),
+                  itemCount: provider.categories.length,
+                  itemBuilder: (context, index) {
+                    final cat = provider.categories[index];
+                    return InkWell(
+                      onTap: () => setState(() => selectedCategory = cat.id),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (cat.image?.isNotEmpty ?? false)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  base64Decode(cat.image!),
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else
+                              const Icon(Icons.category, size: 40, color: appColor),
+                            const SizedBox(height: 8),
+                            Text(
+                              cat.name,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                )
+              else
+                // Productos de la categoría seleccionada
+                Column(
+                  children: provider.menu
+                      .where((p) => p.categoryId == selectedCategory)
+                      .map((product) => _buildProductItem(product, selectedItems, setState))
+                      .toList(),
+                ),
             ],
           ),
         ),
@@ -194,6 +229,69 @@ void showNewOrderDialog(
           ),
         ],
       ),
+    ),
+  );
+}
+
+Widget _buildProductItem(Product product, Map<Product, int> selectedItems,
+    void Function(void Function()) setState) {
+  int qty = selectedItems.entries
+      .firstWhere((e) => e.key.id == product.id,
+          orElse: () => MapEntry(product, 0))
+      .value;
+  return ListTile(
+    leading: Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(3),
+      child: product.image != null
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(base64Decode(product.image!), fit: BoxFit.cover),
+            )
+          : const Icon(Icons.fastfood, color: Colors.grey),
+    ),
+    title: Text(product.name),
+    subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+            icon: const Icon(Icons.remove_circle, color: Colors.red),
+            onPressed: qty > 0
+                ? () {
+                    setState(() {
+                      var actualProductKey = selectedItems.keys.firstWhere(
+                          (k) => k.id == product.id,
+                          orElse: () => product);
+                      selectedItems[actualProductKey] = qty - 1;
+                    });
+                  }
+                : null),
+        Text('$qty', style: const TextStyle(fontSize: 16)),
+        IconButton(
+            icon: const Icon(Icons.add_circle, color: appGreen),
+            onPressed: () {
+              setState(() {
+                var actualProductKey = selectedItems.keys.firstWhere(
+                    (k) => k.id == product.id,
+                    orElse: () => product);
+                selectedItems[actualProductKey] = qty + 1;
+              });
+            }),
+      ],
     ),
   );
 }

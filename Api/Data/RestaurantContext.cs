@@ -8,6 +8,7 @@ public class RestaurantContext : DbContext
     public RestaurantContext(DbContextOptions<RestaurantContext> options) : base(options) { }
 
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<Category> Categories => Set<Category>();
     public DbSet<OrderTable> Tables => Set<OrderTable>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();

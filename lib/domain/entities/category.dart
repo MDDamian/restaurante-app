@@ -1,35 +1,27 @@
-class Product {
-  String id;
+class Category {
+  final String id;
   String name;
-  double price;
-  String? image;
+  String? image; // Base64
   int sortOrder;
-  String categoryId;
 
-  Product({
+  Category({
     required this.id,
     required this.name,
-    required this.price,
     this.image,
     this.sortOrder = 0,
-    this.categoryId = 'General',
   });
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'price': price,
         'image': image,
         'sortOrder': sortOrder,
-        'categoryId': categoryId,
       };
 
-  factory Product.fromJson(Map<String, dynamic> json) => Product(
+  factory Category.fromJson(Map<String, dynamic> json) => Category(
         id: json['id'] as String,
         name: json['name'] as String,
-        price: (json['price'] as num).toDouble(),
         image: json['image'] as String?,
         sortOrder: json['sortOrder'] as int? ?? 0,
-        categoryId: json['categoryId'] as String? ?? json['category'] as String? ?? 'General',
       );
 }

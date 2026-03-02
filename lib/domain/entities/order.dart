@@ -46,4 +46,27 @@ class Order {
         isCompleted: json['isCompleted'] as bool,
         timestamp: DateTime.parse(json['timestamp']),
       );
+  Order copyWith({
+    String? id,
+    int? orderNumber,
+    int? tableNumber,
+    String? waiterName,
+    String? clientName,
+    String? clientDocument,
+    List<OrderItem>? items,
+    bool? isCompleted,
+    DateTime? timestamp,
+  }) {
+    return Order(
+      id: id ?? this.id,
+      orderNumber: orderNumber ?? this.orderNumber,
+      tableNumber: tableNumber ?? this.tableNumber,
+      waiterName: waiterName ?? this.waiterName,
+      clientName: clientName ?? this.clientName,
+      clientDocument: clientDocument ?? this.clientDocument,
+      items: items ?? this.items,
+      isCompleted: isCompleted ?? this.isCompleted,
+      timestamp: timestamp ?? this.timestamp,
+    );
+  }
 }

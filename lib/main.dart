@@ -43,8 +43,9 @@ class RestauranteApp extends StatelessWidget {
         useMaterial3: true,
         scaffoldBackgroundColor: scaffoldBg,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: appOrange,
-          primary: appOrange,
+          seedColor: const Color(0xFFE53935), // Corvina Red
+          primary: const Color(0xFFE53935),
+          secondary: const Color(0xFFFFD600), // Sunshine Yellow
           surface: Colors.white,
         ),
         textTheme: GoogleFonts.plusJakartaSansTextTheme(),
@@ -76,16 +77,67 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kitchen Commander',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Image.asset(
+          'assets/images/logo.png',
+          height: 40,
+          fit: BoxFit.contain,
+        ),
         backgroundColor: Colors.white,
         foregroundColor: appOrange,
         elevation: 1,
         centerTitle: true,
+        actions: [
+          Consumer<RestaurantProvider>(
+            builder: (context, provider, child) {
+              return Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: provider.isLocalMode ? Colors.blue.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: provider.isLocalMode ? Colors.blue : Colors.green,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      provider.isLocalMode ? Icons.storage : Icons.cloud_done,
+                      size: 14,
+                      color: provider.isLocalMode ? Colors.blue : Colors.green,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      provider.isLocalMode ? 'Local' : 'Servidor',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: provider.isLocalMode ? Colors.blue : Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const AssetImage('assets/images/logo.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.white.withOpacity(0.9),
+              BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

@@ -31,78 +31,83 @@ class TableDetailsScreen extends StatelessWidget {
           child: Container(color: appOrange, height: 2),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                    color: Colors.grey.shade600,
-                    borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.arrow_back, color: Colors.white),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tableName,
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                              color: isOccupied ? appRed : appGreen,
-                              borderRadius: BorderRadius.circular(4)),
-                          child: Text(isOccupied ? 'OCUPADA' : 'LIBRE',
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const AssetImage(appLogo),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.white.withOpacity(0.9),
+              BlendMode.lighten,
+            ),
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(
+              children: [
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(tableName,
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                                color: isOccupied ? appRed : appGreen,
+                                borderRadius: BorderRadius.circular(4)),
+                            child: Text(isOccupied ? 'OCUPADA' : 'LIBRE',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('${orders.length} pedido(s)',
                               style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('${orders.length} pedido(s)',
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 14)),
-                      ],
-                    ),
+                                  color: Colors.grey, fontSize: 14)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                ActionButton(
+                    text: 'NUEVO\nPEDIDO',
+                    onPressed: () =>
+                        showNewOrderDialog(context, tableId, provider)),
+              ],
+            ),
+            const SizedBox(height: 30),
+            if (orders.isEmpty)
+              Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.receipt_long,
+                        size: 80, color: Colors.grey.shade300),
+                    const SizedBox(height: 16),
+                    const Text('No hay pedidos registrados para\nesta mesa',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    const SizedBox(height: 24),
+                    ActionButton(
+                        text: 'CREAR PRIMER PEDIDO',
+                        onPressed: () =>
+                            showNewOrderDialog(context, tableId, provider)),
                   ],
                 ),
-              ),
-              ActionButton(
-                  text: 'NUEVO\nPEDIDO',
-                  onPressed: () =>
-                      showNewOrderDialog(context, tableId, provider)),
-            ],
-          ),
-          const SizedBox(height: 30),
-          if (orders.isEmpty)
-            Center(
-              child: Column(
-                children: [
-                  Icon(Icons.receipt_long,
-                      size: 80, color: Colors.grey.shade300),
-                  const SizedBox(height: 16),
-                  const Text('No hay pedidos registrados para\nesta mesa',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 16)),
-                  const SizedBox(height: 24),
-                  ActionButton(
-                      text: 'CREAR PRIMER PEDIDO',
-                      onPressed: () =>
-                          showNewOrderDialog(context, tableId, provider)),
-                ],
-              ),
-            )
-          else
-            ...orders.map((o) => OrderCard(order: o, color: appYellow)),
-        ],
+              )
+            else
+              ...orders.map((o) => OrderCard(order: o, color: appYellow)),
+          ],
+        ),
       ),
     );
   }

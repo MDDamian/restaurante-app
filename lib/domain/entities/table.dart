@@ -1,11 +1,25 @@
 class RestaurantTable {
-  int id;
-  String name;
+  final int id;
+  final String name;
+
   RestaurantTable({required this.id, required this.name});
-  Map<String, dynamic> toJson() => {'id': id, 'name': name};
-  factory RestaurantTable.fromJson(Map<String, dynamic> json) =>
-      RestaurantTable(
-        id: json['id'] as int,
-        name: json['name'] as String,
-      );
+
+  factory RestaurantTable.fromJson(Map<String, dynamic> json) {
+    return RestaurantTable(
+      id: (json['id'] as num).toInt(),
+      name: json['name'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+      };
+
+  RestaurantTable copyWith({int? id, String? name}) {
+    return RestaurantTable(
+      id: id ?? this.id,
+      name: name ?? this.name,
+    );
+  }
 }
