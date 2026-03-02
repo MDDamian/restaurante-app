@@ -19,6 +19,7 @@ public class RestaurantContext : DbContext
         modelBuilder.Entity<Product>().Property(p => p.Price).HasColumnType("decimal(18,2)");
         modelBuilder.Entity<Order>().HasKey(o => o.Id);
         modelBuilder.Entity<OrderTable>().HasKey(t => t.Id);
+        modelBuilder.Entity<OrderTable>().Property(t => t.Id).ValueGeneratedNever();
         
         modelBuilder.Entity<OrderItem>()
             .HasOne<Order>()
